@@ -1,18 +1,23 @@
-# PARAMETERS
-COVERAGE_RADIUS = 1500  # meters
+# Parameters
+COVERAGE_RADIUS = 1500  # in meters
 MAX_TOWERS = 10
-GRID_SPACING = 1000     # meters
+GRID_SPACING = 1000  # meters
 
-# STEP 1: Define Mumbai boundary (approximate box)
-print("Loading Mumbai boundary...")
+st.set_page_config(page_title="Mumbai Cell Tower Optimization", layout="wide")
+
+st.title("📡 Mumbai Cell Tower Optimization")
+st.markdown("This app uses a greedy algorithm to place cell towers for maximum population coverage in Mumbai.")
+
+# Step 1: Mumbai boundary (approximate)
+st.subheader("Step 1: Define Mumbai Boundary")
 mumbai_boundary_coords = [
     (72.775, 19.002), (72.775, 19.30), (72.986, 19.30), (72.986, 19.002)
 ]
 city_polygon = Polygon(mumbai_boundary_coords)
 city_gdf = gpd.GeoDataFrame(index=[0], crs="EPSG:4326", geometry=[city_polygon])
 
-# STEP 2: Generate simulated population points
-print("Generating simulated population points...")
+# Step 2: Simulate population
+st.subheader("Step 2: Simulate Population Points")
 population_points = []
 np.random.seed(42)
 minx, miny, maxx, maxy = city_polygon.bounds
@@ -33,13 +38,13 @@ pop_gdf = gpd.GeoDataFrame(
     crs="EPSG:4326"
 )
 
-# STEP 3: Project to meters
+# Step 3: Project to meters
 pop_gdf = pop_gdf.to_crs(epsg=3857)
 city_proj = city_gdf.to_crs(epsg=3857)
 city_polygon_proj = city_proj.geometry.iloc[0]
 
-# STEP 4: Generate candidate tower locations on a grid
-print("Generating candidate tower locations...")
+# Step 4: Generate candidate towers
+st.subheader("Step 3: Generate Candidate Tower Locations")
 minx, miny, maxx, maxy = city_polygon_proj.bounds
 x_coords = np.arange(minx, maxx, GRID_SPACING)
 y_coords = np.arange(miny, maxy, GRID_SPACING)
@@ -53,8 +58,8 @@ for x in x_coords:
 
 candidates_gdf = gpd.GeoDataFrame(geometry=candidate_points, crs="EPSG:3857")
 
-# STEP 5: Greedy Algorithm - place towers
-print("Placing towers...")
+# Step 5: Greedy Optimization
+st.subheader("Step 4: Optimize Tower Placement")
 covered = set()
 towers = []
 
@@ -78,11 +83,11 @@ for _ in range(MAX_TOWERS):
         towers.append(best_tower)
         covered |= best_covered
 
-# STEP 6: Visualize using Folium
-print("Creating map...")
+# Step 6: Folium Map
+st.subheader("📍 Final Output Map")
 m = folium.Map(location=[19.0760, 72.8777], zoom_start=11, tiles="cartodbpositron")
 
-# Add tower circles & markers
+# Add towers
 for tower in towers:
     lon, lat = gpd.GeoSeries([tower], crs="EPSG:3857").to_crs(epsg=4326).geometry[0].coords[0]
     folium.Circle(
@@ -94,7 +99,7 @@ for tower in towers:
         icon=folium.Icon(color='blue')
     ).add_to(m)
 
-# Add population points
+# Add population
 for _, row in pop_gdf.iterrows():
     lon, lat = gpd.GeoSeries([row.geometry], crs="EPSG:3857").to_crs(epsg=4326).geometry[0].coords[0]
     folium.CircleMarker(
@@ -102,6 +107,5 @@ for _, row in pop_gdf.iterrows():
         color="red", fill=True, fill_opacity=0.6
     ).add_to(m)
 
-# Save map
-m.save("mumbai_cell_towers.html")
-print("✅ Map saved to 'mumbai_cell_towers.html'")
+# Show map in Streamlit
+st_data = st_folium(m, width=1200, height=600)
